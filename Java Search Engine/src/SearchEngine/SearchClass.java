@@ -1,56 +1,35 @@
 package SearchEngine;
 
-import java.awt.*;
+
 import java.io.*;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
-import java.util.List;
 import java.util.Map.Entry;
 
-import javax.swing.*;
 
 
 public class SearchClass 
 {
-	public enum SearchBy
-	{
-		AND,
-		OR,
-		PHRASE
-	}
 	
 	
 	
 	// Global Variables
-	Long indexLastBuilt;
-	boolean indexOutOfDate;
-	SearchFrame searchFrame;
-	FileFrame fileFrame;
-	Map<Integer, String> files = new HashMap<Integer, String>();
-	Map<String, ArrayList<Long>> words = new HashMap<String, ArrayList<Long>>();
-	String currentDirectory = System.getProperty("user.dir");
-	boolean newIndex;
+	private long indexLastBuilt = 0;
+	private boolean indexOutOfDate;
+	private Map<Integer, String> files = new HashMap<Integer, String>();
+	private Map<String, ArrayList<Long>> words = new HashMap<String, ArrayList<Long>>();
+	private String currentDirectory = System.getProperty("user.dir");
 	
 	
 	
-	public boolean AddFileToIndex()
+	// Add and remove files
+	public boolean AddFileToIndex(String filePath)
 	{
 		boolean added;
-		String filePath;
-		FileClass MyFileClass = new FileClass();
-		
-		
-		
-		// Call the Open File Dialog Box
-		filePath = MyFileClass.CreateOpenFileDialogBox(currentDirectory + "\\Inverted Index");
 		
 		
 				
 		// If the file has not already been added
-		if (filePath == null | !files.containsValue(filePath))
+		if (!files.containsValue(filePath))
 		{
 			// Then add it to the hash map
 			files.put(GetNextAvailableIndex(),  filePath);
@@ -69,13 +48,14 @@ public class SearchClass
 		
 		return added;
 	}
-	
 	public boolean RemoveFileFromIndex(String filePath)
 	{
 		boolean removed;
 		int file = GetKeyFromValue(files, filePath);
 		
-		// If the file has already been added
+		
+		
+		// If the file has already been added to the index
 		if (file != -1)
 		{
 			// Then remove it from the hash map
@@ -96,6 +76,9 @@ public class SearchClass
 		return removed;
 	}
 	
+	
+	
+	// Rebuilding the index
 	public void AskToReindexFiles()
 	{
 		if (indexOutOfDate)
@@ -103,7 +86,7 @@ public class SearchClass
 			ReindexFiles();
 		}
 	}
-	public void ReindexFiles()
+	private void ReindexFiles()
 	{
 		String[] wordsToIndex;
 		String [] filepaths = GetFileNames();
@@ -114,6 +97,7 @@ public class SearchClass
 		
 		// House keeping
 		files = new HashMap<Integer, String>();
+		words = new HashMap<String, ArrayList<Long>>();
 		
 		
 		
@@ -121,7 +105,7 @@ public class SearchClass
 		for (i = 0; i < filepaths.length; i++)
 		{
 			// Read file into memory and split it into words
-			wordsToIndex = MyFileClass.ImportTextFile(filepaths[i]).replaceAll("[]!?,", "").split("\\s+");
+			wordsToIndex = MyFileClass.ImportTextFile(filepaths[i]).toLowerCase().replaceAll("[!?,.]", "").split("\\s+");
 			
 			
 			
@@ -148,34 +132,47 @@ public class SearchClass
 				words.get(wordsToIndex[j]).add(CombineFileAndPosition(i + "," + j));
 			}	
 		}
+		
+		
+		
+		// Change the the time the index was last built
+		// Reset the index out of date flag
+		indexLastBuilt = new Date().getTime();
+		indexOutOfDate = false;
 	}
 	
+	
+	
+	// Index Subs
 	public void ImportIndex()
 	{
+		// Make the index directory
+		// If the directory exists, this will do nothing
+		new File(currentDirectory + "\\Inverted Index").mkdir();
+		
+		
+		
+		// Attempt to open the index
 		File indexFile = new File(currentDirectory + "\\Inverted Index\\Index.txt");
-		String nextLine;
 		
 		
 		
+		// Attempt to import the index
 		if (indexFile.exists())
 		{
 			try
 			{
 				Scanner indexFileScanner = new Scanner(indexFile);
 				
+				
+				
 				// New Index File?
-				nextLine = indexFileScanner.nextLine();
-				if (nextLine.startsWith("0"))
-				{
-					newIndex = true;
-				}
-				else
+				String nextLine = indexFileScanner.nextLine();
+				if (!nextLine.equals("0"))
 				{
 					String[] lineArguments;
 					String word;
 					int numberOfFiles, i;
-					
-					newIndex = false;
 					
 					
 					
@@ -192,6 +189,14 @@ public class SearchClass
 						nextLine = indexFileScanner.nextLine();
 						lineArguments = nextLine.split(",");
 						files.put(Integer.parseInt(lineArguments[0]), lineArguments[1]);
+						
+						
+						
+						// Check if the file has been modified after the index was last built
+						if (indexLastBuilt < (new File(lineArguments[1]).lastModified()))
+						{
+							indexOutOfDate = true;
+						}
 					}
 					
 					
@@ -212,6 +217,9 @@ public class SearchClass
 					}
 				}
 				
+				
+				
+				// Close the File Scanner
 				indexFileScanner.close();
 			}
 			catch (Exception e)
@@ -221,6 +229,7 @@ public class SearchClass
 		}
 		else
 		{
+			// Create a new index file
 			try
 			{
 				indexFile.createNewFile();
@@ -234,8 +243,12 @@ public class SearchClass
 				e.printStackTrace();
 			}
 		}
+		
+		
+		
+		// If the index is out of date, rebuild it
+		AskToReindexFiles();
 	}
-	
 	public void ExportIndex()
 	{
 		// Open the file
@@ -275,9 +288,10 @@ public class SearchClass
 			{
 				word = wordEntry.getKey();
 				filesAndPositions = wordEntry.getValue();
-				indexFileWriter.write(word);
 				
 				indexFileWriter.newLine();	
+				indexFileWriter.write(word);
+
 				for (long fileAndPosition:  filesAndPositions)
 				{
 					indexFileWriter.write(" " + GetFile(fileAndPosition) + "," + GetPosition(fileAndPosition));
@@ -289,13 +303,6 @@ public class SearchClass
 			
 			// Close the file
 			indexFileWriter.close();
-			
-			
-			
-			// Change the the time the index was last built
-			// Reset the index out of date flag
-			// indexLastBuilt = now;
-			indexOutOfDate = false;
 		}
 		catch (Exception e)
 		{
@@ -303,53 +310,172 @@ public class SearchClass
 		}		
 	}
 	
-	public String[] GetFileNames()
+	
+	
+	// Searching subs
+	public ArrayList<String> SearchByOR(String[] searchTerms)
 	{
-		String[] fileNames = new String[files.size()];
-		int i = 0;
+		ArrayList<Integer> matchingFileNumbers = new ArrayList<Integer>();
+		ArrayList<String> matchingFilePaths = new ArrayList<String>();
 		
-		for (String _fileName:  files.values())
+		
+		
+		for (String searchTerm:  searchTerms)
 		{
-			fileNames[i] = _fileName;
-			i++;
+			for (Map.Entry<String, ArrayList<Long>> word:  words.entrySet())
+			{
+				if (word.getKey().equals(searchTerm.toLowerCase()))
+				{
+					for (long file:  word.getValue())
+					{
+						if (!matchingFileNumbers.contains(GetFile(file)))
+						{
+							matchingFileNumbers.add(GetFile(file));
+						}
+					}
+				}
+			}
 		}
 		
-		return fileNames;
+		
+		
+		// Return the matches
+		for (Integer fileNumber:  matchingFileNumbers)
+		{
+			matchingFilePaths.add(files.get(fileNumber));
+		}
+		return matchingFilePaths;
 	}
-	
-	
-	
-	
-	public void ImportRefrences(SearchFrame searchFrameInput, FileFrame fileFrameInput)
+	public ArrayList<String> SearchByAND(String[] searchTerms)
 	{
-		searchFrame = searchFrameInput;
-		fileFrame = fileFrameInput;
+		// Declarations
+		ArrayList<Integer> matchingFileNumbers = new ArrayList<Integer>(GetFileNumbers());
+		ArrayList<Integer> fileNumbersToRemove = new ArrayList<Integer>();
+		ArrayList<String> matchingFilePaths = new ArrayList<String>();
+		boolean contains;
+		
+		
+		
+		//
+		for (String searchTerm:  searchTerms)
+		{
+			for (int fileNumber:  matchingFileNumbers)
+			{
+				contains = false;
+				if (words.containsKey(searchTerm))
+				{
+					for (long file:  words.get(searchTerm))  
+					{
+						if (fileNumber == GetFile(file))
+						{
+							contains = true;
+							break;
+						}
+					}
+				}
+				
+				
+				
+				if (contains == false && matchingFileNumbers.contains(fileNumber))
+				{
+					if (!fileNumbersToRemove.contains(fileNumber))
+					{
+						fileNumbersToRemove.add(fileNumber);
+					}
+				}
+			}
+		}
+		
+		
+		
+		// Remove the files
+		for (int fileNumber:  fileNumbersToRemove)
+		{
+			matchingFileNumbers.remove((Object) fileNumber);
+		}
+		
+		
+		
+		// Return the matches
+		for (Integer fileNumber:  matchingFileNumbers)
+		{
+			matchingFilePaths.add(files.get(fileNumber));
+		}
+		return matchingFilePaths;
 	}
-	
-	public void ExitProgram()
+	public ArrayList<String> SearchByPHRASE(String[] searchTerms)
 	{
-		ExportIndex();
-		SearchEngine.ExitProgram();
+		ArrayList<Long> matchingFileNumbers = new ArrayList<Long>(words.get(searchTerms[0]));
+		ArrayList<Long> tempMatchingFileNumbers = new ArrayList<Long>(words.get(searchTerms[0]));
+		ArrayList<String> matchingFilePaths = new ArrayList<String>();
+		String searchTerm;
+		int i;
+		
+		
+		
+		// The rest of the words
+		// Check that the first word in the phrase is contained in any file
+		// If so, loop for the rest of the phrase
+		if (matchingFileNumbers.size() != 0)
+		{
+			for (i = 1; i < searchTerms.length; i ++)
+			{
+				searchTerm = searchTerms[i];
+				for (Map.Entry<String, ArrayList<Long>> entry:  words.entrySet())
+				{
+					if (entry.getKey().equals(searchTerm))
+					{
+						tempMatchingFileNumbers = new ArrayList<Long>();
+						for (Long fileAndPosition:  entry.getValue())
+						{
+							for (Long matchingFileNumber:  matchingFileNumbers)
+							{
+								if ((GetFile(matchingFileNumber) == GetFile(fileAndPosition) && (GetPosition(matchingFileNumber) + i == GetPosition(fileAndPosition))))
+								{
+									tempMatchingFileNumbers.add(fileAndPosition);
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			
+			
+			// Advance to next word
+			matchingFileNumbers = tempMatchingFileNumbers;
+		}
+
+		
+		
+		
+		// Return the matches
+		for (Long fileAndPosition:  matchingFileNumbers)
+		{
+			if (!matchingFilePaths.contains(files.get(GetFile(fileAndPosition))))
+			{
+				matchingFilePaths.add(files.get(GetFile(fileAndPosition)));
+			}
+		}
+		return matchingFilePaths;
 	}
 	
 	
 	
-	// File and Position Subs
-	private long CombineFileAndPosition(String fileAndPosition)
+	// Helper methods	
+	public String[] GetFileNames()
 	{
-		String[] arguments = fileAndPosition.split(",");
-		return (Integer.parseInt(arguments[0]) << 32 | Integer.parseInt(arguments[1]));
+		String[] f = new String[files.size()];
+		files.values().toArray(f);
+		return f;
 	}
-	private int GetFile(long fileAndPosition)
+	private ArrayList<Integer> GetFileNumbers()
 	{
-		return (int)fileAndPosition >> 32;
+		ArrayList<Integer> fileNumbers = new ArrayList<Integer>();
+		fileNumbers.addAll(files.keySet());
+		return fileNumbers;
 	}
-	private int GetPosition(long fileAndPosition)
-	{
-		return (int)fileAndPosition;
-	}
-	
-	public int GetNextAvailableIndex()
+ 	private int GetNextAvailableIndex()
 	{
 		int nextIndex = 0;
 		
@@ -360,7 +486,6 @@ public class SearchClass
 		
 		return nextIndex;
 	}
-	
 	private int GetKeyFromValue(Map<Integer, String> inputMap, String value)
 	{
 		for (Entry <Integer, String> tempEntry:  inputMap.entrySet())
@@ -373,9 +498,31 @@ public class SearchClass
 		
 		return -1;
 	}
-	private void MsgBox(String prompt)
+	public void ExitProgram()
 	{
-		JOptionPane.showMessageDialog(null, prompt);
+		AskToReindexFiles();
+		ExportIndex();
+		SearchEngine.ExitProgram();
+	}
+	
+	
+	
+	// File and Position Subs (Combining two int into a long and vice versa)
+	private long CombineFileAndPosition(String fileAndPosition)
+	{
+		String[] arguments = fileAndPosition.split(",");
+		int f = Integer.parseInt(arguments[0]);
+		int p = Integer.parseInt(arguments[1]);
+		
+		return (((long) f) << 32) | (p & 0xffffffffL);
+	}
+	private int GetFile(long fileAndPosition)
+	{
+		return (int) (fileAndPosition >> 32);
+	}
+	private int GetPosition(long fileAndPosition)
+	{
+		return (int) fileAndPosition;
 	}
 	
 }

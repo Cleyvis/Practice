@@ -1,15 +1,16 @@
 package SearchEngine;
 
+
 public class SearchEngine
 {
+	
+	
+	
 	// Global Variables
 	static SearchFrame searchFrame;
 	static FileFrame fileFrame;
 	static SearchClass searchClass;
 	
-	
-	
-	// JOptionPane.showMessageDialog(null, currentDirectory);
 	
 	
 	public static void main(String[] args)
@@ -21,10 +22,9 @@ public class SearchEngine
 		
 		
 		
-		// Import References
+		// Import references to the other classes
 		searchFrame.ImportRefrences(searchClass,  fileFrame);
-		fileFrame.ImportRefrences(searchClass, searchFrame);
-		searchClass.ImportRefrences(searchFrame, fileFrame);
+		fileFrame.ImportRefrences(searchClass);
 		
 		
 		

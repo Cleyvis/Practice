@@ -1,23 +1,23 @@
 package SearchEngine;
 
+
 import java.awt.*;
 import java.awt.event.*;
-import java.util.*;
-
 import javax.swing.*;
-import javax.swing.event.*;
 
 
 
 public class FileFrame 
 {
+	
+	
+	
 	// Global Variables
 	JFrame fileFrame;
-	JList fileList;
-	DefaultListModel fileListModel;
+	JList<String> fileList;
+	DefaultListModel<String> fileListModel;
 	
 	SearchClass searchClass;
-	SearchFrame searchFrame;
 	
 	
 	
@@ -42,9 +42,9 @@ public class FileFrame
 		
 		
 		
-		// Button Add
+		// Add Button
 		JButton btnAdd = new JButton("Add");
-		btnAdd.setBounds(25, 47, 89, 23);
+		btnAdd.setBounds(116, 47, 89, 23);
 		btnAdd.addActionListener(new ActionListener()
 		{
 			public void actionPerformed(ActionEvent ae)
@@ -56,9 +56,9 @@ public class FileFrame
 		
 		
 		
-		// Button Remove
+		// Remove Button
 		JButton btnRemove = new JButton("Remove");
-		btnRemove.setBounds(139, 47, 89, 23);
+		btnRemove.setBounds(321, 47, 89, 23);
 		btnRemove.addActionListener(new ActionListener()
 		{
 			public void actionPerformed(ActionEvent ae)
@@ -70,39 +70,26 @@ public class FileFrame
 		
 		
 		
-		// Button Reindex
-		JButton btnReindex = new JButton("Reindex");
-		btnReindex.setBounds(253, 47, 89, 23);
-		btnReindex.addActionListener(new ActionListener()
+		// Hide Frame Button
+		JButton btnHideFrame = new JButton("Done");
+		btnHideFrame.setBounds(526, 47, 89, 23);
+		btnHideFrame.addActionListener(new ActionListener()
 		{
 			public void actionPerformed(ActionEvent ae)
 			{
-				// searchClass.AskToReindexFiles();
-			}
-		});
-		fileFrame.getContentPane().add(btnReindex);
-		
-		
-		
-		// Button Quit
-		JButton btnQuit_1 = new JButton("Quit");
-		btnQuit_1.setBounds(367, 47, 89, 23);
-		btnQuit_1.addActionListener(new ActionListener()
-		{
-			public void actionPerformed(ActionEvent ae)
-			{
-				// searchClass.AskToReindexFiles();
+				searchClass.AskToReindexFiles();
 				fileFrame.setVisible(false);
 			}
 		});
-		fileFrame.getContentPane().add(btnQuit_1);
+		fileFrame.getContentPane().add(btnHideFrame);
 		
 		
 		
 		// File list
-		fileListModel = new DefaultListModel();
+		fileListModel = new DefaultListModel<String>();
 		
-		fileList = new JList(fileListModel);
+		fileList = new JList<String>(fileListModel);
+		fileList.setFont(new Font("Tahoma", Font.BOLD, 11));
 		fileList.setBounds(25, 81, 699, 269);
 		fileFrame.getContentPane().add(fileList);
 		
@@ -112,6 +99,64 @@ public class FileFrame
 		fileFrame.setVisible(false);
 	}
 	
+	
+	
+	// Add and remove files
+	public void AddFileToIndex()
+	{
+		// Declarations
+		FileClass MyFileClass = new FileClass();
+		
+		
+		
+		// Call the Open File Dialog Box on the current directory
+		String filePath = MyFileClass.CreateOpenFileDialogBox(System.getProperty("user.dir") + "\\Inverted Index");
+		
+		
+		
+		// If the method succeeded or failed
+		if (filePath != null && searchClass.AddFileToIndex(filePath))
+		{
+			MsgBox("The file has been added successfully.");
+		}
+		else
+		{
+			MsgBox("The file was not added.");
+		}
+		
+		
+		
+		// Refresh the frame
+		RefreshFrame();
+	}
+	public void RemoveFileFromIndex()
+	{
+		// Declarations
+		int file = fileList.getSelectedIndex();
+		String filePath = (String) fileList.getSelectedValue();
+		
+		
+		
+		// If the file was removed
+		if (searchClass.RemoveFileFromIndex(filePath))
+		{
+			fileListModel.remove(file);
+			MsgBox("The file has been removed.");
+		}
+		else
+		{
+			MsgBox("The file was not removed.");
+		}
+		
+		
+		
+		// Refresh the frame
+		RefreshFrame();
+	}
+	
+	
+	
+	// Helper methods
 	public void setVisible(Boolean visible)
 	{
 		if (visible)
@@ -124,42 +169,31 @@ public class FileFrame
 			fileFrame.setVisible(false);
 		}
 	}
-	
-	public void AddFileToIndex()
-	{
-		searchClass.AddFileToIndex();
-		RefreshFrame();
-	}
-	
-	public void RemoveFileFromIndex()
-	{
-		int file = fileList.getSelectedIndex();
-		String filePath = (String)fileList.getSelectedValue();
-		
-		if (searchClass.RemoveFileFromIndex(filePath))
-		{
-			fileListModel.remove(file);
-			JOptionPane.showMessageDialog(null, "The file has been removed.");
-		}
-		else
-		{
-			JOptionPane.showMessageDialog(null, "Error:  the file has not been removed.");
-		}
-	}
-	
 	public void RefreshFrame()
 	{
+		// Get the index file names
 		String[] filepathArray = searchClass.GetFileNames();
+		
+		
+		
+		// Clear the list
 		fileListModel.clear();
-		for (int i = 0; i < filepathArray.length; i++)
+		
+		
+		
+		// Add each index file name to the list
+		for (String filePath:  filepathArray)
 		{
-			fileListModel.addElement(filepathArray[i]);
+			fileListModel.addElement(filePath);
 		}
 	}
-	
-	public void ImportRefrences(SearchClass searchClassInput, SearchFrame searchFrameInput)
+	public void ImportRefrences(SearchClass searchClassInput)
 	{
 		searchClass = searchClassInput;
-		searchFrame = searchFrameInput;
 	}
+	private void MsgBox(String prompt)
+	{
+		JOptionPane.showMessageDialog(null, prompt);
+	}
+	
 }

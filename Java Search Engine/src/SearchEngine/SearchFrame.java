@@ -1,15 +1,34 @@
 package SearchEngine;
 
+
 import java.awt.*;
 import java.awt.event.*;
+import java.util.ArrayList;
+
 import javax.swing.*;
 
 
 
 public class SearchFrame
 {
+	// Enumerations
+	enum SearchBy
+	{
+		AND,
+		OR,
+		PHRASE;
+	}
+	
+	
+	
 	// Global Variables
 	JFrame searchFrame;
+	JTextField searchTermsJTextField;
+	JTextPane resultsJTextPane;
+	
+	JRadioButton rdbtnAnd;
+	JRadioButton rdbtnOr;
+	JRadioButton rdbtnPhrase;
 	
 	SearchClass searchClass;
 	FileFrame fileFrame;
@@ -22,7 +41,7 @@ public class SearchFrame
 		// Frame
 		searchFrame = new JFrame();
 		searchFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		searchFrame.setSize(500, 400);
+		searchFrame.setSize(750, 400);
 		searchFrame.setLocationRelativeTo(null);
 		searchFrame.getContentPane().setLayout(null);
 		searchFrame.setVisible(false);
@@ -32,51 +51,91 @@ public class SearchFrame
 		// Label
 		JLabel lblJavaSearchEngine = new JLabel("Java Search Engine");
 		lblJavaSearchEngine.setFont(new Font("Tahoma", Font.BOLD, 20));
-		lblJavaSearchEngine.setBounds(143, 11, 197, 25);
+		lblJavaSearchEngine.setBounds(268, 11, 197, 25);
 		searchFrame.getContentPane().add(lblJavaSearchEngine);
 		
 		
 		
 		// Search TextField
-		JTextField searchTerms = new JTextField();
-		searchTerms.setBounds(10, 47, 464, 20);
-		searchFrame.getContentPane().add(searchTerms);
-		searchTerms.setColumns(10);
+		searchTermsJTextField = new JTextField();
+		searchTermsJTextField.setBounds(135, 47, 464, 20);
+		searchFrame.getContentPane().add(searchTermsJTextField);
+		searchTermsJTextField.setColumns(10);
 		
 		
 		
 		// Radio Button AND
-		JRadioButton rdbtnAnd = new JRadioButton("AND");
+		rdbtnAnd = new JRadioButton("AND");
+		rdbtnAnd.addActionListener(new ActionListener() 
+		{
+			public void actionPerformed(ActionEvent arg0) 
+			{
+				rdbtnAnd.setSelected(true);
+				rdbtnOr.setSelected(false);
+				rdbtnPhrase.setSelected(false);
+			}
+		});
 		rdbtnAnd.setHorizontalAlignment(SwingConstants.CENTER);
-		rdbtnAnd.setBounds(54, 74, 89, 23);
+		rdbtnAnd.setBounds(116, 74, 89, 23);
 		searchFrame.getContentPane().add(rdbtnAnd);
 		
 		
 		
 		// Radio Button OR
-		JRadioButton rdbtnOr = new JRadioButton("OR");
+		rdbtnOr = new JRadioButton("OR");
+		rdbtnOr.addActionListener(new ActionListener() 
+		{
+			public void actionPerformed(ActionEvent e) 
+			{
+				rdbtnAnd.setSelected(false);
+				rdbtnOr.setSelected(true);
+				rdbtnPhrase.setSelected(false);
+			}
+		});
 		rdbtnOr.setHorizontalAlignment(SwingConstants.CENTER);
-		rdbtnOr.setBounds(197, 74, 89, 23);
+		rdbtnOr.setBounds(321, 74, 89, 23);
 		searchFrame.getContentPane().add(rdbtnOr);
 		
 		
 		
 		// Radio Button PHRASE
-		JRadioButton rdbtnPhrase = new JRadioButton("PHRASE");
+		rdbtnPhrase = new JRadioButton("PHRASE");
+		rdbtnPhrase.addActionListener(new ActionListener() 
+		{
+			public void actionPerformed(ActionEvent e) 
+			{
+				rdbtnAnd.setSelected(false);
+				rdbtnOr.setSelected(false);
+				rdbtnPhrase.setSelected(true);
+			}
+		});
 		rdbtnPhrase.setHorizontalAlignment(SwingConstants.CENTER);
-		rdbtnPhrase.setBounds(340, 74, 89, 23);
+		rdbtnPhrase.setBounds(526, 74, 89, 23);
 		searchFrame.getContentPane().add(rdbtnPhrase);
 		
 		
 		
 		// Button Search
 		JButton btnSearch = new JButton("Search");
-		btnSearch.setBounds(54, 104, 89, 23);
+		btnSearch.setBounds(116, 104, 89, 23);
 		btnSearch.addActionListener(new ActionListener()
 		{
 			public void actionPerformed(ActionEvent ae)
 			{
+				if (rdbtnAnd.isSelected())
+				{
+					Search(SearchBy.AND);
+				}
 				
+				if (rdbtnOr.isSelected())
+				{
+					Search(SearchBy.OR);
+				}
+				
+				if (rdbtnPhrase.isSelected())
+				{
+					Search(SearchBy.PHRASE);
+				}
 			}
 		});
 		searchFrame.getContentPane().add(btnSearch);
@@ -85,7 +144,7 @@ public class SearchFrame
 		
 		// Button Files
 		JButton btnFiles = new JButton("Files");
-		btnFiles.setBounds(197, 104, 89, 23);
+		btnFiles.setBounds(321, 104, 89, 23);
 		btnFiles.addActionListener(new ActionListener()
 		{
 			public void actionPerformed(ActionEvent ae)
@@ -99,7 +158,7 @@ public class SearchFrame
 		
 		// Button Quit
 		JButton btnQuit = new JButton("Quit");
-		btnQuit.setBounds(340, 104, 89, 23);
+		btnQuit.setBounds(526, 104, 89, 23);
 		btnQuit.addActionListener(new ActionListener()
 		{
 			public void actionPerformed(ActionEvent ae)
@@ -112,13 +171,57 @@ public class SearchFrame
 		
 		
 		// Text Field Results
-		JTextPane results = new JTextPane();
-		results.setBounds(10, 138, 464, 212);
-		searchFrame.getContentPane().add(results);
+		resultsJTextPane = new JTextPane();
+		resultsJTextPane.setFont(new Font("Tahoma", Font.BOLD, 11));
+		resultsJTextPane.setBounds(10, 138, 714, 212);
+		searchFrame.getContentPane().add(resultsJTextPane);
 		
 		searchFrame.setVisible(false);
 	}
 	
+	
+	
+	// Search Subs
+	private void Search(SearchBy searchMethod)
+	{
+		ArrayList<String> files = new ArrayList<String>();
+		String results;
+		
+		if (searchMethod == SearchBy.AND)
+		{
+			files = searchClass.SearchByAND(searchTermsJTextField.getText().toLowerCase().replaceAll("[!?,.]", "").split("\\s+"));
+		}
+		
+		if (searchMethod == SearchBy.OR)
+		{
+			files = searchClass.SearchByOR(searchTermsJTextField.getText().toLowerCase().replaceAll("[!?,.]", "").split("\\s+"));
+		}
+		
+		if (searchMethod == SearchBy.PHRASE)
+		{
+			files = searchClass.SearchByPHRASE(searchTermsJTextField.getText().toLowerCase().replaceAll("[!?,.]", "").split("\\s+"));
+		}
+		
+		
+		
+		if (files != null && files.size() != 0)
+		{
+			results = "";
+			for (String file:  files)
+			{
+				results += file + "\n";
+			}
+			resultsJTextPane.setText(results);
+		}
+		else
+		{
+			resultsJTextPane.setText("No matches found");
+		}
+	}
+	
+	
+	
+	// Helper Subs
 	public void setVisible(boolean visible) 
 	{
 		if (visible)
@@ -130,10 +233,10 @@ public class SearchFrame
 			searchFrame.setVisible(false);
 		}
 	}
-	
 	public void ImportRefrences(SearchClass searchClassInput, FileFrame fileFrameInput)
 	{
 		searchClass = searchClassInput;
 		fileFrame = fileFrameInput;
 	}
+	
 }
